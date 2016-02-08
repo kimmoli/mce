@@ -1,4 +1,10 @@
-mce (1.62.5) unstable; urgency=low
+mce (1.62.90) unstable; urgency=low
+
+  * onyx doubletap test
+
+ -- Kimmo Lindholm <kimmo.lindholm@eke.fi>  Mon, 08 Feb 2016 22:04:29 +0300
+
+ mce (1.62.5) unstable; urgency=low
 
   * [cleanup] Remove unused median_filter module. Contributes to MER#1290
   * [cleanup] Remove unused filter-brightness-simple plugin. Fixes MER#1290
