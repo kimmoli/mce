@@ -50,16 +50,20 @@ G_MODULE_EXPORT module_info_struct module_info = {
 #define KEY_GESTURE_LEFT_V      253 // draw left arrow for previous track
 #define KEY_GESTURE_RIGHT_V     254 // draw right arrow for next track
 
+static struct input_event evmimic = {};
+static DBusConnection *sessionbus_connection = NULL;
+
 /** Gesture event callback
  *
  * @param input_event struct
  */
 static void onyx_gesture_trigger(gconstpointer const data)
 {
-    mce_log(LL_DEBUG, "Gesture arrived in module!");
-
     struct input_event const *const *evp;
     struct input_event const *ev;
+    struct input_event *ev_mimic = &evmimic;
+
+    DBusMessage *msg = 0;
 
     if( !(evp = data) )
         goto EXIT;
@@ -73,16 +77,36 @@ static void onyx_gesture_trigger(gconstpointer const data)
     {
         case KEY_GESTURE_CIRCLE:
             mce_log(LL_DEBUG, "Camera");
+
+            /* Mimic gesture to wake-up */
+            ev_mimic->type  = EV_MSC;
+            ev_mimic->code  = MSC_GESTURE;
+            ev_mimic->value = 0x4;
+
+            execute_datapipe(&touchscreen_pipe, &ev_mimic, USE_INDATA, DONT_CACHE_INDATA);
+            
+            msg = dbus_new_method_call("com.jolla.camera", "/", "com.jolla.camera.ui", "showViewfinder");
+
+            if (dbus_connection_send(sessionbus_connection, msg, NULL) == FALSE) 
+            {
+                mce_log(LL_WARN, "sessionbus operation failed");
+            }
+            msg = 0;
+
             break;
+
         case KEY_GESTURE_LEFT_V:
         case KEY_GESTURE_RIGHT_V:
         case KEY_GESTURE_TWO_SWIPE:
             mce_log(LL_DEBUG, "Music");
             break;
+
         case KEY_GESTURE_V:
             mce_log(LL_DEBUG, "Flashlight");
             break;
-        default: break;
+
+        default:
+            break;
     }
 
 EXIT:
@@ -100,6 +124,16 @@ const gchar *g_module_check_init(GModule *module)
 {
 	(void)module;
     
+	DBusError   error    = DBUS_ERROR_INIT;
+   
+    if( !(sessionbus_connection = dbus_bus_get(DBUS_BUS_SESSION, &error)) ) 
+    {
+        mce_log(LL_CRIT, "Failed to open connection to session bus; %s", error.message);
+        dbus_error_free(&error);
+        return "error";
+    }
+    dbus_connection_setup_with_g_main(sessionbus_connection, NULL);
+    
     append_output_trigger_to_datapipe(&onyx_gesture_pipe, onyx_gesture_trigger);
 
 	return NULL;
@@ -116,6 +150,13 @@ void g_module_unload(GModule *module)
 	(void)module;
     
     remove_output_trigger_from_datapipe(&onyx_gesture_pipe, onyx_gesture_trigger);
+
+	if (sessionbus_connection != NULL) 
+    {
+		mce_log(LL_DEBUG, "Unreferencing D-Bus connection");
+		dbus_connection_unref(sessionbus_connection);
+		sessionbus_connection = NULL;
+	}
 
 	return;
 }
