@@ -24,6 +24,7 @@
 #include "../mce-dbus.h"
 
 #include <gmodule.h>
+#include <linux/input.h>
 
 /** Module name */
 #define MODULE_NAME		"onyx-gesture"
@@ -41,13 +42,51 @@ G_MODULE_EXPORT module_info_struct module_info = {
 	.priority = 250
 };
 
+ /** Constants */
+ /* onyx specific gesture key definitions */
+#define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
+#define KEY_GESTURE_TWO_SWIPE   251 // swipe two finger vertically to play/pause
+#define KEY_GESTURE_V           252 // draw v to toggle flashlight
+#define KEY_GESTURE_LEFT_V      253 // draw left arrow for previous track
+#define KEY_GESTURE_RIGHT_V     254 // draw right arrow for next track
+
 /** Gesture event callback
  *
- * @param
+ * @param input_event struct
  */
 static void onyx_gesture_trigger(gconstpointer const data)
 {
     mce_log(LL_DEBUG, "Gesture arrived in module!");
+
+    struct input_event const *const *evp;
+    struct input_event const *ev;
+
+    if( !(evp = data) )
+        goto EXIT;
+
+    if( !(ev = *evp) )
+        goto EXIT;
+
+    mce_log(LL_DEBUG, "Gesture data, type=%d code=%d value=%d", ev->type, ev->code, ev->value);
+
+    switch (ev->code)
+    {
+        case KEY_GESTURE_CIRCLE:
+            mce_log(LL_DEBUG, "Camera");
+            break;
+        case KEY_GESTURE_LEFT_V:
+        case KEY_GESTURE_RIGHT_V:
+        case KEY_GESTURE_TWO_SWIPE:
+            mce_log(LL_DEBUG, "Music");
+            break;
+        case KEY_GESTURE_V:
+            mce_log(LL_DEBUG, "Flashlight");
+            break;
+        default: break;
+    }
+
+EXIT:
+    return;
 }
 
 /**
