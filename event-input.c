@@ -85,6 +85,13 @@
 # endif
 #endif
 
+/* onyx specific gesture key definitions */
+#define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
+#define KEY_GESTURE_TWO_SWIPE   251 // swipe two finger vertically to play/pause
+#define KEY_GESTURE_V           252 // draw v to toggle flashlight
+#define KEY_GESTURE_LEFT_V      253 // draw left arrow for previous track
+#define KEY_GESTURE_RIGHT_V     254 // draw right arrow for next track
+
 /* ========================================================================= *
  * DATA TYPES AND FUNCTION PROTOTYPES
  * ========================================================================= */
@@ -1985,6 +1992,16 @@ evin_iomon_touchscreen_cb(gpointer data, gsize bytes_read)
         ev->type  = EV_MSC;
         ev->code  = MSC_GESTURE;
         ev->value = 0x4;
+    }
+
+    /* onyx gestures */
+    if(ev->type == EV_KEY && ev->code >= KEY_GESTURE_CIRCLE && ev->code <= KEY_GESTURE_RIGHT_V && ev->value == 0 ) {
+
+        mce_log(LL_DEBUG, "Gesture detected: %s",
+                evdev_get_event_code_name(ev->type, ev->code));
+
+        execute_datapipe(&onyx_gesture_pipe, &ev,
+                         USE_INDATA, DONT_CACHE_INDATA);
     }
 
     /* Ignore unwanted events */

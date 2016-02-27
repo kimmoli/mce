@@ -158,6 +158,7 @@ MODULES += $(MODULE_DIR)/audiorouting.so
 MODULES += $(MODULE_DIR)/powersavemode.so
 MODULES += $(MODULE_DIR)/cpu-keepalive.so
 MODULES += $(MODULE_DIR)/packagekit.so
+MODULES += $(MODULE_DIR)/onyx-gesture.so
 
 # Tools to build
 TOOLS   += $(TOOLDIR)/mcetool
@@ -608,6 +609,7 @@ NORMALIZE_USES_TAB =\
 	modules/proximity.c\
 	modules/proximity.h\
 	modules/radiostates.c\
+    modules/onyx-gesture.c\
 	systemui/tklock-dbus-names.h\
 
 NORMALIZE_KNOWN := $(NORMALIZE_USES_SPC) $(NORMALIZE_USES_TAB)

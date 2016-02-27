@@ -79,6 +79,9 @@ datapipe_struct keypress_pipe;
 /** Touchscreen activity took place */
 datapipe_struct touchscreen_pipe;
 
+/** Onyx gestures detected */
+datapipe_struct onyx_gesture_pipe;
+
 /** The lock-key has been pressed; read only */
 datapipe_struct lockkey_pipe;
 
@@ -841,6 +844,8 @@ void mce_datapipe_init(void)
 		       sizeof (struct input_event), NULL);
 	setup_datapipe(&touchscreen_pipe, READ_ONLY, FREE_CACHE,
 		       sizeof (struct input_event), NULL);
+    setup_datapipe(&onyx_gesture_pipe, READ_ONLY, FREE_CACHE,
+		       sizeof (struct input_event), NULL);
 	setup_datapipe(&device_inactive_pipe, READ_WRITE, DONT_FREE_CACHE,
 		       0, GINT_TO_POINTER(TRUE));
 	setup_datapipe(&lockkey_pipe, READ_ONLY, DONT_FREE_CACHE,
@@ -950,6 +955,7 @@ void mce_datapipe_quit(void)
 	free_datapipe(&lockkey_pipe);
 	free_datapipe(&device_inactive_pipe);
 	free_datapipe(&touchscreen_pipe);
+    free_datapipe(&onyx_gesture_pipe);
 	free_datapipe(&keypress_pipe);
 	free_datapipe(&key_backlight_pipe);
 	free_datapipe(&user_activity_pipe);
