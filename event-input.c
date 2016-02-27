@@ -85,15 +85,6 @@
 # endif
 #endif
 
-/* onyx */
-#define KEY_DOUBLE_TAP          249 // double tap to wake
-#define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
-#define KEY_GESTURE_TWO_SWIPE	251 // swipe two finger vertically to play/pause
-#define KEY_GESTURE_V           252 // draw v to toggle flashlight
-#define KEY_GESTURE_LEFT_V      253 // draw left arrow for previous track
-#define KEY_GESTURE_RIGHT_V     254 // draw right arrow for next track
-/* onyx */
-
 /* ========================================================================= *
  * DATA TYPES AND FUNCTION PROTOTYPES
  * ========================================================================= */
@@ -1278,7 +1269,6 @@ evin_evdevtype_from_info(evin_evdevinfo_t *info)
         KEY_MENU,
         KEY_BACK,
         KEY_HOMEPAGE,
-        KEY_DOUBLE_TAP,         /* onyx */
         -1
     };
     /* Key events mce is interested in */
@@ -1289,12 +1279,6 @@ evin_evdevtype_from_info(evin_evdevinfo_t *info)
         KEY_SCREENLOCK,
         KEY_VOLUMEDOWN,
         KEY_VOLUMEUP,
-        KEY_DOUBLE_TAP,          /* onyx */
-        KEY_GESTURE_CIRCLE,      /* onyx */
-        KEY_GESTURE_TWO_SWIPE,   /* onyx */
-        KEY_GESTURE_V,           /* onyx */
-        KEY_GESTURE_LEFT_V,      /* onyx */
-        KEY_GESTURE_RIGHT_V,     /* onyx */
         -1
     };
 
@@ -1982,8 +1966,7 @@ evin_iomon_touchscreen_cb(gpointer data, gsize bytes_read)
 #endif
 
     /* Power key up event from touch screen -> double tap gesture event */
-    /* onyx */
-    if( ev->type == EV_KEY && (ev->code == KEY_POWER || ev->code == KEY_DOUBLE_TAP) && ev->value == 0 ) {
+    if( ev->type == EV_KEY && ev->code == KEY_POWER && ev->value == 0 ) {
         cover_state_t proximity_sensor_state =
             datapipe_get_gint(proximity_sensor_pipe);
 
