@@ -22,6 +22,8 @@
 #include "../mce.h"
 #include "../mce-log.h"
 #include "../mce-dbus.h"
+#include "../mce-gconf.h"
+#include "doubletap.h"
 
 #include <gmodule.h>
 #include <linux/input.h>
@@ -53,6 +55,32 @@ G_MODULE_EXPORT module_info_struct module_info = {
 static struct input_event evmimic = {};
 static DBusConnection *sessionbus_connection = NULL;
 
+/** Touchscreen double tap gesture enable mode */
+static gint doubletap_enable_mode = DBLTAP_ENABLE_DEFAULT;
+/** GConf callback ID for doubletap_enable_mode */
+static guint doubletap_enable_mode_cb_id = 0;
+
+/** Connect to dbus sessionbus
+ *
+ * @return TRUE on success, FALSE if connection failed
+ */
+static gboolean connect_sessionbus(void)
+{
+	DBusError   error    = DBUS_ERROR_INIT;
+    gboolean ret = true;
+
+    if( !(sessionbus_connection = dbus_bus_get(DBUS_BUS_SESSION, &error)) )
+    {
+        mce_log(LL_CRIT, "Failed to open connection to session bus; %s", error.message);
+        dbus_error_free(&error);
+        ret = false;
+        goto EXIT;
+    }
+    dbus_connection_setup_with_g_main(sessionbus_connection, NULL);
+EXIT:
+    return ret;
+}
+
 /** Gesture event callback
  *
  * @param input_event struct
@@ -71,12 +99,46 @@ static void onyx_gesture_trigger(gconstpointer const data)
     if( !(ev = *evp) )
         goto EXIT;
 
-    mce_log(LL_DEBUG, "Gesture data, type=%d code=%d value=%d", ev->type, ev->code, ev->value);
+    cover_state_t proximity_sensor_state = datapipe_get_gint(proximity_sensor_pipe);
+    cover_state_t lid_cover_policy_state = datapipe_get_gint(lid_cover_policy_pipe);
+
+    mce_log(LL_DEBUG, "Gesture event %s; proximity=%s, lid=%s",
+            evdev_get_event_code_name(ev->type, ev->code),
+            proximity_state_repr(proximity_sensor_state),
+            proximity_state_repr(lid_cover_policy_state));
+
+    switch( doubletap_enable_mode )
+    {
+        case DBLTAP_ENABLE_NEVER:
+            mce_log(LL_DEVEL, "Gesture ignored due to doubletap setting=never");
+            goto EXIT;
+
+        case DBLTAP_ENABLE_ALWAYS:
+            break;
+
+        default:
+        case DBLTAP_ENABLE_NO_PROXIMITY:
+            if( lid_cover_policy_state == COVER_CLOSED )
+            {
+                mce_log(LL_DEVEL, "Gesture ignored due to lid=closed");
+                goto EXIT;
+            }
+            if( proximity_sensor_state != COVER_OPEN )
+            {
+                mce_log(LL_DEVEL, "Gesture ignored due to proximity");
+                goto EXIT;
+            }
+            break;
+    }
+
+    if ( sessionbus_connection == NULL )
+        if ( !connect_sessionbus() )
+            goto EXIT;
 
     switch (ev->code)
     {
         case KEY_GESTURE_CIRCLE:
-            mce_log(LL_DEBUG, "Camera");
+            mce_log(LL_DEBUG, "Camera gesture");
 
             /* Mimic gesture to wake-up */
             ev_mimic->type  = EV_MSC;
@@ -96,13 +158,19 @@ static void onyx_gesture_trigger(gconstpointer const data)
             break;
 
         case KEY_GESTURE_LEFT_V:
+            mce_log(LL_DEBUG, "Previous track gesture");
+            break;
+
         case KEY_GESTURE_RIGHT_V:
+            mce_log(LL_DEBUG, "Next track gesture");
+            break;
+
         case KEY_GESTURE_TWO_SWIPE:
-            mce_log(LL_DEBUG, "Music");
+            mce_log(LL_DEBUG, "Play/Pause gesture");
             break;
 
         case KEY_GESTURE_V:
-            mce_log(LL_DEBUG, "Flashlight");
+            mce_log(LL_DEBUG, "Flashlight gesture");
             break;
 
         default:
@@ -111,6 +179,28 @@ static void onyx_gesture_trigger(gconstpointer const data)
 
 EXIT:
     return;
+}
+
+/** GConf callback for touchscreen/keypad lock related settings
+ *
+ * @param gcc Unused
+ * @param id Connection ID from gconf_client_notify_add()
+ * @param entry The modified GConf entry
+ * @param data Unused
+ */
+static void doubletap_gconf_cb(GConfClient *const gcc, const guint id,
+                               GConfEntry *const entry, gpointer const data)
+{
+    (void)gcc;
+    (void)data;
+    (void)id;
+
+    const GConfValue *gcv = gconf_entry_get_value(entry);
+
+    if( id == doubletap_enable_mode_cb_id )
+    {
+        doubletap_enable_mode = gconf_value_get_int(gcv);
+    }
 }
 
 /**
@@ -123,17 +213,14 @@ G_MODULE_EXPORT const gchar *g_module_check_init(GModule *module);
 const gchar *g_module_check_init(GModule *module)
 {
 	(void)module;
-    
-	DBusError   error    = DBUS_ERROR_INIT;
+
+    /** Touchscreen double tap gesture mode */
+    mce_gconf_track_int(MCE_GCONF_DOUBLETAP_MODE,
+                        &doubletap_enable_mode,
+                        DBLTAP_ENABLE_DEFAULT,
+                        doubletap_gconf_cb,
+                        &doubletap_enable_mode_cb_id);
    
-    if( !(sessionbus_connection = dbus_bus_get(DBUS_BUS_SESSION, &error)) ) 
-    {
-        mce_log(LL_CRIT, "Failed to open connection to session bus; %s", error.message);
-        dbus_error_free(&error);
-        return "error";
-    }
-    dbus_connection_setup_with_g_main(sessionbus_connection, NULL);
-    
     append_output_trigger_to_datapipe(&onyx_gesture_pipe, onyx_gesture_trigger);
 
 	return NULL;
@@ -150,6 +237,9 @@ void g_module_unload(GModule *module)
 	(void)module;
     
     remove_output_trigger_from_datapipe(&onyx_gesture_pipe, onyx_gesture_trigger);
+
+    mce_gconf_notifier_remove(doubletap_enable_mode_cb_id),
+        doubletap_enable_mode_cb_id = 0;
 
 	if (sessionbus_connection != NULL) 
     {
