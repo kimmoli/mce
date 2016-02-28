@@ -268,6 +268,7 @@ static const char * const lut_key[] =
   [0x00f5] = "KEY_DISPLAY_OFF",
   [0x00f6] = "KEY_WIMAX",
   [0x00f7] = "KEY_RFKILL",
+  [0x00f9] = "KEY_GESTURE_DOWN_V",       /* onyx unused */
   [0x00fa] = "KEY_GESTURE_CIRCLE",      /* onyx camera */
   [0x00fb] = "KEY_GESTURE_TWO_SWIPE",   /* onyx music play */
   [0x00fc] = "KEY_GESTURE_V",           /* onyx flashlight */

@@ -86,6 +86,7 @@
 #endif
 
 /* onyx specific gesture key definitions */
+#define KEY_GESTURE_DOWN_V      249 // draw ^ to do something yet undefined
 #define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
 #define KEY_GESTURE_TWO_SWIPE   251 // swipe two finger vertically to play/pause
 #define KEY_GESTURE_V           252 // draw v to toggle flashlight
@@ -1995,7 +1996,7 @@ evin_iomon_touchscreen_cb(gpointer data, gsize bytes_read)
     }
 
     /* onyx gestures */
-    if(ev->type == EV_KEY && ev->code >= KEY_GESTURE_CIRCLE && ev->code <= KEY_GESTURE_RIGHT_V && ev->value == 0 ) {
+    if(ev->type == EV_KEY && ev->code >= KEY_GESTURE_DOWN_V && ev->code <= KEY_GESTURE_RIGHT_V && ev->value == 0 ) {
 
         mce_log(LL_DEBUG, "Gesture detected: %s",
                 evdev_get_event_code_name(ev->type, ev->code));

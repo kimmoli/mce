@@ -53,6 +53,7 @@ G_MODULE_EXPORT module_info_struct module_info = {
 
  /** Constants */
  /* onyx specific gesture key definitions */
+#define KEY_GESTURE_DOWN_V      249 // draw ^ to do something yet undefined
 #define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
 #define KEY_GESTURE_TWO_SWIPE   251 // swipe two finger vertically to play/pause
 #define KEY_GESTURE_V           252 // draw v to toggle flashlight
@@ -301,6 +302,27 @@ static void onyx_gesture_trigger(gconstpointer const data)
             {
                 mce_log(LL_ERR, "Failed to toggle torch brightness");
             }
+            break;
+
+        case KEY_GESTURE_DOWN_V:
+            mce_log(LL_DEBUG, "Voicecall gesture");
+
+            /* Mimic gesture to wake-up */
+            ev_mimic->type  = EV_MSC;
+            ev_mimic->code  = MSC_GESTURE;
+            ev_mimic->value = 0x4;
+
+            execute_datapipe(&touchscreen_pipe, &ev_mimic, USE_INDATA, DONT_CACHE_INDATA);
+
+            msg = dbus_new_method_call("com.jolla.voicecall.ui", "/org/maemo/m", "com.nokia.telephony.callhistory", "launch");
+            const char *vs = "Hello";
+            dbus_message_append_args(msg, DBUS_TYPE_STRING, &vs, DBUS_TYPE_INVALID);
+            if (dbus_connection_send(sessionbus_connection, msg, NULL) == FALSE)
+            {
+                mce_log(LL_WARN, "Send operation failed on D-Bus sessionbus");
+            }
+
+            msg = 0;
             break;
 
         default:
