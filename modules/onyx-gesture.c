@@ -23,6 +23,7 @@
 #include "../mce-log.h"
 #include "../mce-dbus.h"
 #include "../mce-gconf.h"
+#include "../evdev.h"
 #include "doubletap.h"
 
 #include <gmodule.h>
@@ -35,19 +36,19 @@
 #include <string.h>
 
 /** Module name */
-#define MODULE_NAME		"onyx-gesture"
+#define MODULE_NAME        "onyx-gesture"
 
 /** Functionality provided by this module */
 static const gchar *const provides[] = { MODULE_NAME, NULL };
 
 /** Module information */
 G_MODULE_EXPORT module_info_struct module_info = {
-	/** Name of the module */
-	.name = MODULE_NAME,
-	/** Module provides */
-	.provides = provides,
-	/** Module priority */
-	.priority = 250
+    /** Name of the module */
+    .name = MODULE_NAME,
+    /** Module provides */
+    .provides = provides,
+    /** Module priority */
+    .priority = 250
 };
 
  /** Constants */
@@ -72,7 +73,7 @@ static guint doubletap_enable_mode_cb_id = 0;
  */
 static gboolean connect_sessionbus(void)
 {
-	DBusError   error    = DBUS_ERROR_INIT;
+    DBusError error = DBUS_ERROR_INIT;
     gboolean ret = true;
 
     if( !(sessionbus_connection = dbus_bus_get(DBUS_BUS_SESSION, &error)) )
@@ -136,6 +137,71 @@ EXIT:
     return ret;
 }
 
+/** Send method to current musicplayer with mpris2 support
+ *
+ * @param method name (Play, Pause, Next, Previous, ...)
+ */
+static void mpris2_control(const gchar *method)
+{
+    DBusMessage *msg = 0;
+    DBusMessage *reply = 0;
+    DBusError error = DBUS_ERROR_INIT;
+
+    gchar service[255] = "org.mpris.MediaPlayer2.jolla-mediaplayer";
+
+    msg = dbus_new_method_call("org.freedesktop.DBus", "/org/freedesktop/DBus", "org.freedesktop.DBus", "ListNames");
+    if (!(reply = dbus_connection_send_with_reply_and_block(sessionbus_connection, msg, 1000, &error)))
+    {
+        mce_log(LL_CRIT, "Failed to get services from session bus; %s", error.message);
+        dbus_error_free(&error);
+    }
+    else
+    {
+        DBusMessageIter iter;
+        DBusMessageIter subiter;
+
+        dbus_message_iter_init(reply, &iter);
+
+        switch( dbus_message_iter_get_arg_type(&iter) )
+        {
+        case DBUS_TYPE_ARRAY:
+            switch( dbus_message_iter_get_element_type(&iter) )
+            {
+            case DBUS_TYPE_STRING:
+
+                dbus_message_iter_recurse(&iter, &subiter);
+
+                while ( dbus_message_iter_get_arg_type(&subiter) == DBUS_TYPE_STRING )
+                {
+                    const char *tmp = 0;
+                    dbus_message_iter_get_basic(&subiter, &tmp);
+                    dbus_message_iter_next(&subiter);
+
+                    if (g_ascii_strncasecmp(tmp, "org.mpris.MediaPlayer2.", 23) == 0)
+                    {
+                        g_strlcpy(tmp, service, 254);
+                        mce_log(LL_INFO, "Found mpris2 service: %s", service);
+                    }
+                }
+                break;
+            default:
+                break;
+            }
+        default:
+            break;
+        }
+    }
+
+    msg = 0;
+
+    msg = dbus_new_method_call(&service, "/org/mpris/MediaPlayer2", "org.mpris.MediaPlayer2.Player", method);
+    if (dbus_connection_send(sessionbus_connection, msg, NULL) == FALSE)
+    {
+        mce_log(LL_WARN, "Send operation failed on D-Bus sessionbus");
+    }
+
+    msg = 0;
+}
 
 /** Gesture event callback
  *
@@ -204,29 +270,28 @@ static void onyx_gesture_trigger(gconstpointer const data)
             execute_datapipe(&touchscreen_pipe, &ev_mimic, USE_INDATA, DONT_CACHE_INDATA);
             
             msg = dbus_new_method_call("com.jolla.camera", "/", "com.jolla.camera.ui", "showViewfinder");
-
             if (dbus_connection_send(sessionbus_connection, msg, NULL) == FALSE) 
             {
-                mce_log(LL_WARN, "Failed to connect to D-Bus sessionbus");
+                mce_log(LL_WARN, "Send operation failed on D-Bus sessionbus");
             }
-            else
-            {
-                mce_log(LL_DEBUG, "Connected to D-Bus sessionbus");
-            }
+
             msg = 0;
 
             break;
 
         case KEY_GESTURE_LEFT_V:
             mce_log(LL_DEBUG, "Previous track gesture");
+            mpris2_control("Previous");
             break;
 
         case KEY_GESTURE_RIGHT_V:
             mce_log(LL_DEBUG, "Next track gesture");
+            mpris2_control("Next");
             break;
 
         case KEY_GESTURE_TWO_SWIPE:
             mce_log(LL_DEBUG, "Play/Pause gesture");
+            mpris2_control("PlayPause");
             break;
 
         case KEY_GESTURE_V:
@@ -277,7 +342,7 @@ static void doubletap_gconf_cb(GConfClient *const gcc, const guint id,
 G_MODULE_EXPORT const gchar *g_module_check_init(GModule *module);
 const gchar *g_module_check_init(GModule *module)
 {
-	(void)module;
+    (void)module;
 
     /** Touchscreen double tap gesture mode */
     mce_gconf_track_int(MCE_GCONF_DOUBLETAP_MODE,
@@ -288,7 +353,7 @@ const gchar *g_module_check_init(GModule *module)
    
     append_output_trigger_to_datapipe(&onyx_gesture_pipe, onyx_gesture_trigger);
 
-	return NULL;
+    return NULL;
 }
 
 /**
@@ -299,19 +364,19 @@ const gchar *g_module_check_init(GModule *module)
 G_MODULE_EXPORT void g_module_unload(GModule *module);
 void g_module_unload(GModule *module)
 {
-	(void)module;
+    (void)module;
     
     remove_output_trigger_from_datapipe(&onyx_gesture_pipe, onyx_gesture_trigger);
 
     mce_gconf_notifier_remove(doubletap_enable_mode_cb_id),
         doubletap_enable_mode_cb_id = 0;
 
-	if (sessionbus_connection != NULL) 
+    if (sessionbus_connection != NULL)
     {
         mce_log(LL_DEBUG, "Unreferencing D-Bus sessionbus connection");
-		dbus_connection_unref(sessionbus_connection);
-		sessionbus_connection = NULL;
-	}
+        dbus_connection_unref(sessionbus_connection);
+        sessionbus_connection = NULL;
+    }
 
-	return;
+    return;
 }
