@@ -27,6 +27,12 @@
 
 #include <gmodule.h>
 #include <linux/input.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 /** Module name */
 #define MODULE_NAME		"onyx-gesture"
@@ -80,6 +86,56 @@ static gboolean connect_sessionbus(void)
 EXIT:
     return ret;
 }
+
+/** Toggle torch/flashlight brightness
+ * toggles from any value to 0, and from 0 to 255
+ *
+ * @return TRUE on success, FALSE if file open failed
+ */
+static gboolean toggle_torch_brightness(void)
+{
+    int fd;
+    char buf[5];
+    gboolean ret = false;
+    int brightness = 0;
+
+    fd = open("/sys/class/leds/led:flash_torch/brightness", O_RDONLY);
+    if (fd < 0)
+        goto EXIT;
+
+    if (!(read(fd, buf, sizeof(buf)) > 0))
+    {
+        close(fd);
+        goto EXIT;
+    }
+
+    close(fd);
+
+    brightness = atoi(buf);
+
+    if (brightness == 0)
+        brightness = 255;
+    else
+        brightness = 0;
+
+    fd = open("/sys/class/leds/led:flash_torch/brightness", O_WRONLY);
+    if (fd < 0)
+        goto EXIT;
+
+    sprintf(buf, "%d", brightness);
+    if (!(write(fd, buf, strlen(buf)) > 0))
+    {
+        close(fd);
+        goto EXIT;
+    }
+
+    close(fd);
+
+    ret = true;
+EXIT:
+    return ret;
+}
+
 
 /** Gesture event callback
  *
@@ -151,7 +207,11 @@ static void onyx_gesture_trigger(gconstpointer const data)
 
             if (dbus_connection_send(sessionbus_connection, msg, NULL) == FALSE) 
             {
-                mce_log(LL_WARN, "sessionbus operation failed");
+                mce_log(LL_WARN, "Failed to connect to D-Bus sessionbus");
+            }
+            else
+            {
+                mce_log(LL_DEBUG, "Connected to D-Bus sessionbus");
             }
             msg = 0;
 
@@ -171,6 +231,11 @@ static void onyx_gesture_trigger(gconstpointer const data)
 
         case KEY_GESTURE_V:
             mce_log(LL_DEBUG, "Flashlight gesture");
+
+            if (!toggle_torch_brightness())
+            {
+                mce_log(LL_ERR, "Failed to toggle torch brightness");
+            }
             break;
 
         default:
@@ -243,7 +308,7 @@ void g_module_unload(GModule *module)
 
 	if (sessionbus_connection != NULL) 
     {
-		mce_log(LL_DEBUG, "Unreferencing D-Bus connection");
+        mce_log(LL_DEBUG, "Unreferencing D-Bus sessionbus connection");
 		dbus_connection_unref(sessionbus_connection);
 		sessionbus_connection = NULL;
 	}
