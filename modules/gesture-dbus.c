@@ -54,6 +54,7 @@ static gint doubletap_enable_mode = DBLTAP_ENABLE_DEFAULT;
 /** GConf callback ID for doubletap_enable_mode */
 static guint doubletap_enable_mode_cb_id = 0;
 
+static struct input_event evmimic = {};
 
 /** Gesture event callback
  *
@@ -64,6 +65,9 @@ static void gesture_trigger(gconstpointer const data)
     struct input_event const *const *evp;
     struct input_event const *ev;
     struct input_event *ev_mimic = &evmimic;
+
+    const char *sig = MCE_GESTURE_EVENT_SIG;
+    const char *arg = "unknown-gesture";
 
     if( !(evp = data) )
         goto EXIT;
@@ -115,47 +119,31 @@ static void gesture_trigger(gconstpointer const data)
 
             execute_datapipe(&touchscreen_pipe, &ev_mimic, USE_INDATA, DONT_CACHE_INDATA);
 
-            const char *sig = MCE_GESTURE_EVENT_SIG;
-            const char *arg = MCE_GESTURE_EVENT_CAMERA;
-            mce_log(LL_DEVEL, "sending dbus signal: %s %s", sig, arg);
-            dbus_send(0, MCE_SIGNAL_PATH, MCE_SIGNAL_IF,  sig, 0,
-                      DBUS_TYPE_STRING, &arg, DBUS_TYPE_INVALID);
+            arg = MCE_GESTURE_EVENT_CAMERA;
             break;
 
         case KEY_GESTURE_LEFT_V:
             mce_log(LL_DEBUG, "Previous track gesture");
-            const char *sig = MCE_GESTURE_EVENT_SIG;
-            const char *arg = MCE_GESTURE_EVENT_MUSIC_PREV_TRACK
-            mce_log(LL_DEVEL, "sending dbus signal: %s %s", sig, arg);
-            dbus_send(0, MCE_SIGNAL_PATH, MCE_SIGNAL_IF,  sig, 0,
-                      DBUS_TYPE_STRING, &arg, DBUS_TYPE_INVALID);
+
+            arg = MCE_GESTURE_EVENT_MUSIC_PREV_TRACK;
             break;
 
         case KEY_GESTURE_RIGHT_V:
             mce_log(LL_DEBUG, "Next track gesture");
-            const char *sig = MCE_GESTURE_EVENT_SIG;
-            const char *arg = MCE_GESTURE_EVENT_MUSIC_NEXT_TRACK;
-            mce_log(LL_DEVEL, "sending dbus signal: %s %s", sig, arg);
-            dbus_send(0, MCE_SIGNAL_PATH, MCE_SIGNAL_IF,  sig, 0,
-                      DBUS_TYPE_STRING, &arg, DBUS_TYPE_INVALID);
+
+            arg = MCE_GESTURE_EVENT_MUSIC_NEXT_TRACK;
             break;
 
         case KEY_GESTURE_TWO_SWIPE:
             mce_log(LL_DEBUG, "Play/Pause gesture");
-            const char *sig = MCE_GESTURE_EVENT_SIG;
-            const char *arg = MCE_GESTURE_EVENT_MUSIC_PLAY_PAUSE;
-            mce_log(LL_DEVEL, "sending dbus signal: %s %s", sig, arg);
-            dbus_send(0, MCE_SIGNAL_PATH, MCE_SIGNAL_IF,  sig, 0,
-                      DBUS_TYPE_STRING, &arg, DBUS_TYPE_INVALID);
+
+            arg = MCE_GESTURE_EVENT_MUSIC_PLAY_PAUSE;
             break;
 
         case KEY_GESTURE_V:
             mce_log(LL_DEBUG, "Flashlight gesture");
-            const char *sig = MCE_GESTURE_EVENT_SIG;
-            const char *arg = MCE_GESTURE_EVENT_FLASHLIGHT;
-            mce_log(LL_DEVEL, "sending dbus signal: %s %s", sig, arg);
-            dbus_send(0, MCE_SIGNAL_PATH, MCE_SIGNAL_IF,  sig, 0,
-                      DBUS_TYPE_STRING, &arg, DBUS_TYPE_INVALID);
+
+            arg = MCE_GESTURE_EVENT_FLASHLIGHT;
             break;
 
         case KEY_GESTURE_DOWN_V:
@@ -168,16 +156,19 @@ static void gesture_trigger(gconstpointer const data)
 
             execute_datapipe(&touchscreen_pipe, &ev_mimic, USE_INDATA, DONT_CACHE_INDATA);
 
-            const char *sig = MCE_GESTURE_EVENT_SIG;
-            const char *arg = MCE_GESTURE_EVENT_VOICECALL;
-            mce_log(LL_DEVEL, "sending dbus signal: %s %s", sig, arg);
-            dbus_send(0, MCE_SIGNAL_PATH, MCE_SIGNAL_IF,  sig, 0,
-                      DBUS_TYPE_STRING, &arg, DBUS_TYPE_INVALID);
+            arg = MCE_GESTURE_EVENT_VOICECALL;
             break;
 
         default:
+            mce_log(LL_DEBUG, "Unknown gesture");
+            goto EXIT;
             break;
     }
+
+    mce_log(LL_DEVEL, "sending dbus signal: %s %s", sig, arg);
+    dbus_send(0, MCE_SIGNAL_PATH, MCE_SIGNAL_IF,  sig, 0,
+              DBUS_TYPE_STRING, &arg, DBUS_TYPE_INVALID);
+
 
 EXIT:
     return;
