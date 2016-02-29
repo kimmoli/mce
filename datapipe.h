@@ -105,7 +105,7 @@ extern datapipe_struct display_brightness_pipe;
 extern datapipe_struct key_backlight_pipe;
 extern datapipe_struct keypress_pipe;
 extern datapipe_struct touchscreen_pipe;
-extern datapipe_struct onyx_gesture_pipe;
+extern datapipe_struct gesture_pipe;
 extern datapipe_struct lockkey_pipe;
 extern datapipe_struct keyboard_slide_pipe;
 extern datapipe_struct keyboard_available_pipe;

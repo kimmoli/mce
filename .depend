@@ -822,22 +822,6 @@ modules/usbmode.pic.o:\
 	mce-log.h\
 	mce.h\
 
-modules/onyx-gesture.o:\
-	modules/onyx-gesture.c\
-	builtin-gconf.h\
-	datapipe.h\
-	mce-dbus.h\
-	mce-log.h\
-	mce.h\
-
-modules/onyx-gesture.pic.o:\
-	modules/onyx-gesture.c\
-	builtin-gconf.h\
-	datapipe.h\
-	mce-dbus.h\
-	mce-log.h\
-	mce.h\
-
 powerkey.o:\
 	powerkey.c\
 	builtin-gconf.h\

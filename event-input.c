@@ -32,6 +32,7 @@
 # include "mce-gconf.h"
 #endif
 #include "mce-sensorfw.h"
+#include "mce-gestures.h"
 #include "evdev.h"
 
 #include <linux/input.h>
@@ -84,14 +85,6 @@
 #  define PWR_CNT 0
 # endif
 #endif
-
-/* onyx specific gesture key definitions */
-#define KEY_GESTURE_DOWN_V      249 // draw ^ to do something yet undefined
-#define KEY_GESTURE_CIRCLE      250 // draw circle to lunch camera
-#define KEY_GESTURE_TWO_SWIPE   251 // swipe two finger vertically to play/pause
-#define KEY_GESTURE_V           252 // draw v to toggle flashlight
-#define KEY_GESTURE_LEFT_V      253 // draw left arrow for previous track
-#define KEY_GESTURE_RIGHT_V     254 // draw right arrow for next track
 
 /* ========================================================================= *
  * DATA TYPES AND FUNCTION PROTOTYPES
@@ -1995,13 +1988,13 @@ evin_iomon_touchscreen_cb(gpointer data, gsize bytes_read)
         ev->value = 0x4;
     }
 
-    /* onyx gestures */
+    /* Gestures */
     if(ev->type == EV_KEY && ev->code >= KEY_GESTURE_DOWN_V && ev->code <= KEY_GESTURE_RIGHT_V && ev->value == 0 ) {
 
         mce_log(LL_DEBUG, "Gesture detected: %s",
                 evdev_get_event_code_name(ev->type, ev->code));
 
-        execute_datapipe(&onyx_gesture_pipe, &ev,
+        execute_datapipe(&gesture_pipe, &ev,
                          USE_INDATA, DONT_CACHE_INDATA);
     }
 
