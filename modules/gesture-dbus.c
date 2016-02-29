@@ -196,6 +196,31 @@ static void doubletap_gconf_cb(GConfClient *const gcc, const guint id,
     }
 }
 
+/** Array of dbus message handlers */
+static mce_dbus_handler_t gesture_dbus_handlers[] =
+{
+    /* signals - outbound (for Introspect purposes only) */
+    {
+        .interface = MCE_SIGNAL_IF,
+        .name      = MCE_GESTURE_EVENT_SIG,
+        .type      = DBUS_MESSAGE_TYPE_SIGNAL,
+        .args      =
+            "    <arg name=\"gesture_event\" type=\"s\"/>\n"
+    },
+    /* sentinel */
+    {
+        .interface = 0
+    }
+};
+
+/** Add dbus handlers
+ */
+static void mce_gesture_init_dbus(void)
+{
+    mce_dbus_handler_register_array(gesture_dbus_handlers);
+}
+
+
 /**
  * Init function for the interface module
  *
@@ -206,6 +231,9 @@ G_MODULE_EXPORT const gchar *g_module_check_init(GModule *module);
 const gchar *g_module_check_init(GModule *module)
 {
     (void)module;
+
+    /* install dbus message handlers */
+    mce_gesture_init_dbus();
 
     /** Touchscreen double tap gesture mode */
     mce_gconf_track_int(MCE_GCONF_DOUBLETAP_MODE,
